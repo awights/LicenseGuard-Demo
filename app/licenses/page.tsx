@@ -260,16 +260,14 @@ export default function LicensesPage() {
                         >
                           Delete
                         </button>
-                        {license.renewalLink && (
-                          <a
-                            href={license.renewalLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-green-600 hover:text-green-900"
-                          >
-                            Renew
-                          </a>
-                        )}
+                        <a
+                          href={license.renewalLink || 'https://hub.app.nipr.com/my-nipr/frontend/identify-licensee'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          Renew
+                        </a>
                       </td>
                     </tr>
                   );
