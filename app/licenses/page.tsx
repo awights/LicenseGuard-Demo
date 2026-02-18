@@ -1,36 +1,65 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Layout from '@/components/Layout';
 import StatusBadge from '@/components/StatusBadge';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
-import { getLicenses, saveLicense, deleteLicense, getDaysUntilExpiry, formatDate, getUsers } from '@/lib/storage';
+import { getLicenses, saveLicense, deleteLicense, getDaysUntilExpiry, formatDate, getUsers, getAgency } from '@/lib/storage';
 import { License, User } from '@/lib/types';
 import { LICENSE_TYPES, US_STATES } from '@/lib/constants';
 
 export default function LicensesPage() {
   const [licenses, setLicenses] = useState<License[]>([]);
-  const [filteredLicenses, setFilteredLicenses] = useState<License[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingLicense, setEditingLicense] = useState<License | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterAgent, setFilterAgent] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterState, setFilterState] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [allUsers, setAllUsers] = useState<User[]>([]);
 
   useEffect(() => {
     loadLicenses();
   }, []);
 
-  useEffect(() => {
-    // Apply filters
+  const loadLicenses = () => {
+    const user = getCurrentUser();
+    setCurrentUser(user);
+
+    if (!user) return;
+
+    const users = getUsers();
+    setAllUsers(users);
+
+    const allLicenses = getLicenses();
+    const userLicenses = user.role === 'admin'
+      ? allLicenses
+      : allLicenses.filter(l => l.userId === user.id);
+
+    setLicenses(userLicenses);
+  };
+
+  const filteredLicenses = useMemo(() => {
     let filtered = licenses;
 
-    // Status filter
     if (filterStatus !== 'all') {
       filtered = filtered.filter(l => l.status === filterStatus);
     }
 
-    // Search filter
+    if (filterAgent !== 'all') {
+      filtered = filtered.filter(l => l.userId === filterAgent);
+    }
+
+    if (filterType !== 'all') {
+      filtered = filtered.filter(l => l.type === filterType);
+    }
+
+    if (filterState !== 'all') {
+      filtered = filtered.filter(l => l.state === filterState);
+    }
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(l =>
@@ -40,22 +69,49 @@ export default function LicensesPage() {
       );
     }
 
-    setFilteredLicenses(filtered);
-  }, [licenses, filterStatus, searchQuery]);
+    return filtered;
+  }, [licenses, filterStatus, filterAgent, filterType, filterState, searchQuery]);
 
-  const loadLicenses = () => {
-    const user = getCurrentUser();
-    setCurrentUser(user);
+  const groupedByAgent = useMemo(() => {
+    if (!isAdmin(currentUser)) return null;
 
-    if (!user) return;
+    const userMap = new Map<string, User>();
+    allUsers.forEach(u => userMap.set(u.id, u));
 
-    const allLicenses = getLicenses();
-    const userLicenses = user.role === 'admin'
-      ? allLicenses
-      : allLicenses.filter(l => l.userId === user.id);
+    const groups: { user: User; licenses: License[] }[] = [];
+    const licensesByUser = new Map<string, License[]>();
 
-    setLicenses(userLicenses);
-  };
+    filteredLicenses.forEach(l => {
+      const existing = licensesByUser.get(l.userId) || [];
+      existing.push(l);
+      licensesByUser.set(l.userId, existing);
+    });
+
+    licensesByUser.forEach((lics, userId) => {
+      const user = userMap.get(userId);
+      if (user) {
+        groups.push({ user, licenses: lics });
+      }
+    });
+
+    groups.sort((a, b) => a.user.name.localeCompare(b.user.name));
+
+    return groups;
+  }, [filteredLicenses, allUsers, currentUser]);
+
+  const agency = useMemo(() => getAgency(), []);
+
+  const activeStates = useMemo(() => {
+    const states = new Set<string>();
+    licenses.forEach(l => states.add(l.state));
+    return Array.from(states).sort();
+  }, [licenses]);
+
+  const activeTypes = useMemo(() => {
+    const types = new Set<string>();
+    licenses.forEach(l => types.add(l.type));
+    return Array.from(types).sort();
+  }, [licenses]);
 
   const handleAddNew = () => {
     setEditingLicense(null);
@@ -79,15 +135,133 @@ export default function LicensesPage() {
     loadLicenses();
   };
 
+  const getUserName = (userId: string) => {
+    const user = allUsers.find(u => u.id === userId);
+    return user?.name || 'Unknown';
+  };
+
+  const renderLicenseRow = (license: License) => {
+    const daysUntilExpiry = getDaysUntilExpiry(license.expiryDate);
+    return (
+      <tr key={license.id} className="hover:bg-gray-50">
+        <td className="px-6 py-4 whitespace-nowrap">
+          <div className="text-sm font-medium text-gray-900">
+            {license.type}
+            {license.isResidentState && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                Resident
+              </span>
+            )}
+          </div>
+          {license.notes && (
+            <div className="text-xs text-gray-500">{license.notes}</div>
+          )}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          {license.licenseNumber}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          {license.state}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          {formatDate(license.expiryDate)}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap">
+          <StatusBadge status={license.status} daysUntilExpiry={daysUntilExpiry} />
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm">
+          {license.documents && license.documents.length > 0 ? (
+            <button
+              onClick={() => {
+                const doc = license.documents[license.documents.length - 1];
+                const win = window.open('', '_blank');
+                if (win) {
+                  if (doc.type.startsWith('image/')) {
+                    win.document.write(`<html><head><title>${doc.name}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f3f4f6"><img src="${doc.data}" style="max-width:100%;max-height:100vh" /></body></html>`);
+                  } else {
+                    win.document.write(`<html><head><title>${doc.name}</title></head><body style="margin:0"><iframe src="${doc.data}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
+                  }
+                  win.document.close();
+                }
+              }}
+              className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+            >
+              <span className="mr-1">📄</span>
+              View
+            </button>
+          ) : (
+            <span className="text-gray-400">--</span>
+          )}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+          <button
+            onClick={() => handleEdit(license)}
+            className="text-blue-600 hover:text-blue-900"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => handleDelete(license.id)}
+            className="text-red-600 hover:text-red-900"
+          >
+            Delete
+          </button>
+          <a
+            href={license.renewalLink || 'https://hub.app.nipr.com/my-nipr/frontend/identify-licensee'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-green-600 hover:text-green-900"
+          >
+            Renew
+          </a>
+        </td>
+      </tr>
+    );
+  };
+
+  const tableHeader = (
+    <thead className="bg-gray-50">
+      <tr>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          License Type
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          License Number
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          State
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Expiry Date
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Status
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Document
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Actions
+        </th>
+      </tr>
+    </thead>
+  );
+
+  const adminView = isAdmin(currentUser);
+  const hasActiveFilters = filterStatus !== 'all' || filterAgent !== 'all' || filterType !== 'all' || filterState !== 'all' || searchQuery !== '';
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Licenses & Certifications</h1>
-              <p className="text-gray-600 mt-2">Manage all your insurance licenses</p>
+              <p className="text-gray-600 mt-2">
+                {adminView
+                  ? `Manage all licenses${agency ? ` for ${agency.name}` : ''}`
+                  : 'Manage all your insurance licenses'}
+              </p>
             </div>
             <div className="flex gap-3">
               <a
@@ -110,9 +284,8 @@ export default function LicensesPage() {
           </div>
         </div>
 
-        {/* Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 gap-4 ${adminView ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Search
@@ -134,16 +307,91 @@ export default function LicensesPage() {
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Licenses</option>
+                <option value="all">All Statuses</option>
                 <option value="active">Active</option>
                 <option value="expiring-soon">Expiring Soon</option>
                 <option value="expired">Expired</option>
               </select>
             </div>
+            {adminView && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by Agent
+                  </label>
+                  <select
+                    value={filterAgent}
+                    onChange={(e) => setFilterAgent(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="all">All Agents</option>
+                    {allUsers
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by License Type
+                  </label>
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="all">All Types</option>
+                    {activeTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by State
+                  </label>
+                  <select
+                    value={filterState}
+                    onChange={(e) => setFilterState(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="all">All States</option>
+                    {activeStates.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
           </div>
+          {hasActiveFilters && (
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                Showing {filteredLicenses.length} of {licenses.length} licenses
+              </p>
+              <button
+                onClick={() => {
+                  setFilterStatus('all');
+                  setFilterAgent('all');
+                  setFilterType('all');
+                  setFilterState('all');
+                  setSearchQuery('');
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Licenses List */}
         {filteredLicenses.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <div className="text-6xl mb-4">📋</div>
@@ -151,7 +399,7 @@ export default function LicensesPage() {
               {licenses.length === 0 ? 'No licenses yet' : 'No licenses match your filters'}
             </h3>
             <p className="text-gray-600 mb-6">
-              {licenses.length === 0 
+              {licenses.length === 0
                 ? 'Start tracking your insurance licenses and certifications'
                 : 'Try adjusting your search or filters'
               }
@@ -165,120 +413,57 @@ export default function LicensesPage() {
               </button>
             )}
           </div>
+        ) : adminView && groupedByAgent && filterAgent === 'all' ? (
+          <div className="space-y-6">
+            {groupedByAgent.map(({ user, licenses: agentLicenses }) => {
+              const activeLics = agentLicenses.filter(l => l.status === 'active').length;
+              const expiringLics = agentLicenses.filter(l => l.status === 'expiring-soon').length;
+              const expiredLics = agentLicenses.filter(l => l.status === 'expired').length;
+              return (
+                <div key={user.id} className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-700 font-semibold text-sm">
+                            {user.name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
+                          <p className="text-sm text-gray-500">{user.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-gray-600">{agentLicenses.length} license{agentLicenses.length !== 1 ? 's' : ''}</span>
+                        {activeLics > 0 && <span className="text-green-600 font-medium">{activeLics} active</span>}
+                        {expiringLics > 0 && <span className="text-yellow-600 font-medium">{expiringLics} expiring</span>}
+                        {expiredLics > 0 && <span className="text-red-600 font-medium">{expiredLics} expired</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <table className="min-w-full divide-y divide-gray-200">
+                    {tableHeader}
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {agentLicenses.map(renderLicenseRow)}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    License Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    License Number
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    State
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Expiry Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Document
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+              {tableHeader}
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredLicenses.map((license) => {
-                  const daysUntilExpiry = getDaysUntilExpiry(license.expiryDate);
-                  return (
-                    <tr key={license.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {license.type}
-                          {license.isResidentState && (
-                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              Resident
-                            </span>
-                          )}
-                        </div>
-                        {license.notes && (
-                          <div className="text-xs text-gray-500">{license.notes}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {license.licenseNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {license.state}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(license.expiryDate)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={license.status} daysUntilExpiry={daysUntilExpiry} />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {license.documents && license.documents.length > 0 ? (
-                          <button
-                            onClick={() => {
-                              const doc = license.documents[license.documents.length - 1];
-                              const win = window.open('', '_blank');
-                              if (win) {
-                                if (doc.type.startsWith('image/')) {
-                                  win.document.write(`<html><head><title>${doc.name}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f3f4f6"><img src="${doc.data}" style="max-width:100%;max-height:100vh" /></body></html>`);
-                                } else {
-                                  win.document.write(`<html><head><title>${doc.name}</title></head><body style="margin:0"><iframe src="${doc.data}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
-                                }
-                                win.document.close();
-                              }
-                            }}
-                            className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            <span className="mr-1">📄</span>
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-gray-400">--</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <button
-                          onClick={() => handleEdit(license)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(license.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                        <a
-                          href={license.renewalLink || 'https://hub.app.nipr.com/my-nipr/frontend/identify-licensee'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          Renew
-                        </a>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {filteredLicenses.map(renderLicenseRow)}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Add/Edit Modal */}
       {showModal && (
         <LicenseModal
           license={editingLicense}
