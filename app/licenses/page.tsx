@@ -19,6 +19,7 @@ export default function LicensesPage() {
   const [filterState, setFilterState] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     loadLicenses();
@@ -281,6 +282,13 @@ export default function LicensesPage() {
                 Add Agent
               </a>
               <button
+                onClick={() => setShowImportModal(true)}
+                className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium flex items-center"
+              >
+                <span className="mr-2">📥</span>
+                Import CSV
+              </button>
+              <button
                 onClick={handleAddNew}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center"
               >
@@ -477,6 +485,18 @@ export default function LicensesPage() {
           currentUser={currentUser}
           onClose={() => setShowModal(false)}
           onSave={handleSave}
+        />
+      )}
+
+      {showImportModal && (
+        <CSVImportModal
+          currentUser={currentUser}
+          allUsers={allUsers}
+          onClose={() => setShowImportModal(false)}
+          onImport={() => {
+            setShowImportModal(false);
+            loadLicenses();
+          }}
         />
       )}
     </Layout>
@@ -786,6 +806,309 @@ function LicenseModal({
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CSVImportModal({
+  currentUser,
+  allUsers,
+  onClose,
+  onImport,
+}: {
+  currentUser: User | null;
+  allUsers: User[];
+  onClose: () => void;
+  onImport: () => void;
+}) {
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [parsedRows, setParsedRows] = useState<Record<string, string>[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
+  const [assignTo, setAssignTo] = useState(currentUser?.id || '');
+
+  const expectedHeaders = ['type', 'licenseNumber', 'state', 'issueDate', 'expiryDate'];
+  const optionalHeaders = ['renewalLink', 'notes', 'isResidentState'];
+
+  const parseCSV = (text: string): { rows: Record<string, string>[]; errors: string[] } => {
+    const lines = text.split(/\r?\n/).filter(line => line.trim());
+    if (lines.length < 2) {
+      return { rows: [], errors: ['CSV file must have a header row and at least one data row.'] };
+    }
+
+    const headerLine = lines[0];
+    const headers = headerLine.split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+
+    const parseErrors: string[] = [];
+    const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) {
+      parseErrors.push(`Missing required columns: ${missingHeaders.join(', ')}`);
+      return { rows: [], errors: parseErrors };
+    }
+
+    const rows: Record<string, string>[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      if (values.length !== headers.length) {
+        parseErrors.push(`Row ${i}: expected ${headers.length} columns but found ${values.length}`);
+        continue;
+      }
+      const row: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        row[h] = values[idx].trim().replace(/^["']|["']$/g, '');
+      });
+      rows.push(row);
+    }
+
+    return { rows, errors: parseErrors };
+  };
+
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current);
+    return result;
+  };
+
+  const handleFileSelect = (file: File) => {
+    setCsvFile(file);
+    setImportResult(null);
+    setErrors([]);
+    setParsedRows([]);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result as string;
+      const { rows, errors: parseErrors } = parseCSV(text);
+      setParsedRows(rows);
+      setErrors(parseErrors);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = () => {
+    setImporting(true);
+    let success = 0;
+    let failed = 0;
+    const importErrors: string[] = [];
+
+    parsedRows.forEach((row, index) => {
+      try {
+        const licenseData: License = {
+          id: `lic-${Date.now()}-${index}`,
+          userId: assignTo,
+          type: row.type as License['type'],
+          licenseNumber: row.licenseNumber,
+          state: row.state,
+          issueDate: row.issueDate,
+          expiryDate: row.expiryDate,
+          renewalLink: row.renewalLink || undefined,
+          notes: row.notes || undefined,
+          status: 'active',
+          documents: [],
+          isResidentState: row.isResidentState?.toLowerCase() === 'yes' || row.isResidentState?.toLowerCase() === 'true' || false,
+        };
+
+        if (!licenseData.licenseNumber || !licenseData.state || !licenseData.expiryDate) {
+          importErrors.push(`Row ${index + 1}: Missing required fields`);
+          failed++;
+          return;
+        }
+
+        saveLicense(licenseData);
+        success++;
+      } catch {
+        importErrors.push(`Row ${index + 1}: Failed to save`);
+        failed++;
+      }
+    });
+
+    setImportResult({ success, failed });
+    setErrors(importErrors);
+    setImporting(false);
+
+    if (success > 0 && failed === 0) {
+      setTimeout(() => onImport(), 1500);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const header = [...expectedHeaders, ...optionalHeaders].join(',');
+    const example = 'State Producer,CA-12345678,CA,2024-01-15,2026-01-15,https://example.com/renew,Primary license,no';
+    const csvContent = `${header}\n${example}`;
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'license_import_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Import Licenses from CSV</h2>
+          <p className="text-sm text-gray-500 mb-6">Upload a CSV file to bulk import license information.</p>
+
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-blue-800 mb-2">CSV Format Requirements</h4>
+              <p className="text-xs text-blue-700 mb-2">
+                Required columns: <span className="font-mono font-medium">{expectedHeaders.join(', ')}</span>
+              </p>
+              <p className="text-xs text-blue-700 mb-3">
+                Optional columns: <span className="font-mono font-medium">{optionalHeaders.join(', ')}</span>
+              </p>
+              <button
+                onClick={downloadTemplate}
+                className="text-xs text-blue-700 hover:text-blue-900 font-medium underline"
+              >
+                Download template CSV
+              </button>
+            </div>
+
+            {isAdmin(currentUser) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assign imported licenses to
+                </label>
+                <select
+                  value={assignTo}
+                  onChange={(e) => setAssignTo(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                >
+                  {allUsers
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select CSV File
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-md p-6">
+                <input
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileSelect(file);
+                  }}
+                  className="hidden"
+                  id="csv-upload"
+                  accept=".csv"
+                />
+                <label
+                  htmlFor="csv-upload"
+                  className="cursor-pointer flex flex-col items-center"
+                >
+                  <span className="text-4xl mb-2">📥</span>
+                  <span className="text-sm text-gray-600">
+                    {csvFile ? csvFile.name : 'Click to select a CSV file'}
+                  </span>
+                  <span className="text-xs text-gray-500 mt-1">.csv files only</span>
+                </label>
+              </div>
+            </div>
+
+            {parsedRows.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-800 mb-3">
+                  Preview ({parsedRows.length} license{parsedRows.length !== 1 ? 's' : ''} found)
+                </h4>
+                <div className="max-h-48 overflow-y-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-1 pr-3 text-gray-500">Type</th>
+                        <th className="text-left py-1 pr-3 text-gray-500">License #</th>
+                        <th className="text-left py-1 pr-3 text-gray-500">State</th>
+                        <th className="text-left py-1 pr-3 text-gray-500">Expiry</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedRows.slice(0, 10).map((row, i) => (
+                        <tr key={i} className="border-b border-gray-100">
+                          <td className="py-1 pr-3 text-gray-700">{row.type}</td>
+                          <td className="py-1 pr-3 text-gray-700">{row.licenseNumber}</td>
+                          <td className="py-1 pr-3 text-gray-700">{row.state}</td>
+                          <td className="py-1 pr-3 text-gray-700">{row.expiryDate}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {parsedRows.length > 10 && (
+                    <p className="text-xs text-gray-500 mt-2">...and {parsedRows.length - 10} more</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {errors.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-red-800 mb-2">Issues</h4>
+                <ul className="text-xs text-red-700 space-y-1">
+                  {errors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {importResult && (
+              <div className={`rounded-lg p-4 ${importResult.failed === 0 ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                <p className={`text-sm font-medium ${importResult.failed === 0 ? 'text-green-800' : 'text-yellow-800'}`}>
+                  Imported {importResult.success} license{importResult.success !== 1 ? 's' : ''} successfully
+                  {importResult.failed > 0 && `, ${importResult.failed} failed`}.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end space-x-4 pt-6 mt-6 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleImport}
+              disabled={parsedRows.length === 0 || importing || (importResult !== null && importResult.failed === 0)}
+              className="px-6 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {importing ? 'Importing...' : `Import ${parsedRows.length} License${parsedRows.length !== 1 ? 's' : ''}`}
+            </button>
+          </div>
         </div>
       </div>
     </div>
