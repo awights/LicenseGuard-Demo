@@ -133,6 +133,14 @@ export function saveLicense(license: License): void {
   
   // Update license status based on expiry date
   license.status = calculateLicenseStatus(license.expiryDate);
+
+  if (license.isResidentState) {
+    licenses.forEach(l => {
+      if (l.id !== license.id && l.userId === license.userId) {
+        l.isResidentState = false;
+      }
+    });
+  }
   
   if (index >= 0) {
     licenses[index] = license;

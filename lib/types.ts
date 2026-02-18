@@ -47,6 +47,7 @@ export interface License {
   status: LicenseStatus;
   documents: Document[];
   notes?: string;
+  isResidentState?: boolean;
 }
 
 export interface Document {

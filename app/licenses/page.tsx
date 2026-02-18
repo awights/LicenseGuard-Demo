@@ -199,7 +199,14 @@ export default function LicensesPage() {
                   return (
                     <tr key={license.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{license.type}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {license.type}
+                          {license.isResidentState && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              Resident
+                            </span>
+                          )}
+                        </div>
                         {license.notes && (
                           <div className="text-xs text-gray-500">{license.notes}</div>
                         )}
@@ -309,6 +316,7 @@ function LicenseModal({
       notes: '',
       documents: [],
       status: 'active',
+      isResidentState: false,
     }
   );
 
@@ -328,8 +336,9 @@ function LicenseModal({
       expiryDate: formData.expiryDate || '',
       renewalLink: formData.renewalLink,
       notes: formData.notes,
-      status: 'active', // Will be calculated in saveLicense
+      status: 'active',
       documents: formData.documents || [],
+      isResidentState: formData.isResidentState || false,
     };
 
     saveLicense(licenseData);
@@ -404,6 +413,26 @@ function LicenseModal({
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+              <div>
+                <span className="text-sm font-medium text-gray-700">Resident State License</span>
+                <p className="text-xs text-gray-500 mt-0.5">Only one license can be marked as your resident state</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isResidentState: !formData.isResidentState })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  formData.isResidentState ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    formData.isResidentState ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </div>
 
             <div>
