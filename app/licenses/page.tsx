@@ -186,6 +186,9 @@ export default function LicensesPage() {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Document
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -212,6 +215,30 @@ export default function LicensesPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusBadge status={license.status} daysUntilExpiry={daysUntilExpiry} />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {license.documents && license.documents.length > 0 ? (
+                          <button
+                            onClick={() => {
+                              const doc = license.documents[license.documents.length - 1];
+                              const win = window.open('', '_blank');
+                              if (win) {
+                                if (doc.type.startsWith('image/')) {
+                                  win.document.write(`<html><head><title>${doc.name}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f3f4f6"><img src="${doc.data}" style="max-width:100%;max-height:100vh" /></body></html>`);
+                                } else {
+                                  win.document.write(`<html><head><title>${doc.name}</title></head><body style="margin:0"><iframe src="${doc.data}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
+                                }
+                                win.document.close();
+                              }
+                            }}
+                            className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            <span className="mr-1">📄</span>
+                            View
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">--</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <button
