@@ -273,6 +273,13 @@ export default function LicensesPage() {
                 <span className="mr-2">🏛️</span>
                 Renew on NIPR
               </a>
+              <a
+                href="/team"
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center"
+              >
+                <span className="mr-2">👤</span>
+                Add Agent
+              </a>
               <button
                 onClick={handleAddNew}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center"
