@@ -522,7 +522,7 @@ function LicenseModal({
       state: 'CA',
       issueDate: '',
       expiryDate: '',
-      renewalLink: '',
+      renewalLink: 'https://hub.app.nipr.com/my-nipr/frontend/identify-licensee',
       notes: '',
       documents: [],
       status: 'active',
