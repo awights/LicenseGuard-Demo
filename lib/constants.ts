@@ -13,6 +13,22 @@ export const LICENSE_TYPES: LicenseType[] = [
   'Certification',
 ];
 
+export const POLICY_TYPES_LIST: LicenseType[] = [
+  'Workers Comp',
+  'Property',
+  'Liability',
+  'Business Owners',
+  'E&O Insurance',
+];
+
+export const ALL_LICENSE_AND_POLICY_TYPES: LicenseType[] = [
+  ...LICENSE_TYPES,
+  'Workers Comp',
+  'Property',
+  'Liability',
+  'Business Owners',
+];
+
 export const US_STATES = [
   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
   'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',

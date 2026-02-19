@@ -39,7 +39,19 @@ export type LicenseType =
   | 'FINRA Series 7'
   | 'FINRA Series 63'
   | 'FINRA Series 65'
-  | 'Certification';
+  | 'Certification'
+  | 'Workers Comp'
+  | 'Property'
+  | 'Liability'
+  | 'Business Owners';
+
+export const POLICY_TYPES: LicenseType[] = [
+  'Workers Comp',
+  'Property',
+  'Liability',
+  'Business Owners',
+  'E&O Insurance',
+];
 
 export type LicenseStatus = 'active' | 'expiring-soon' | 'expired';
 
@@ -57,6 +69,11 @@ export interface License {
   notes?: string;
   isResidentState?: boolean;
   certificationName?: string;
+  carrier?: string;
+  premiumAmount?: string;
+  coverageAmount?: string;
+  deductible?: string;
+  namedInsured?: string;
 }
 
 export interface Document {
