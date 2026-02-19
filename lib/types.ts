@@ -27,6 +27,7 @@ export interface Agency {
   phone?: string;
   email?: string;
   fein?: string;
+  licenseNumber?: string;
 }
 
 export type LicenseType = 

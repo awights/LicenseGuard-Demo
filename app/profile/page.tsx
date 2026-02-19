@@ -27,6 +27,7 @@ export default function ProfilePage() {
     phone: '',
     email: '',
     fein: '',
+    licenseNumber: '',
   });
   const [agencySaveStatus, setAgencySaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -55,6 +56,7 @@ export default function ProfilePage() {
             phone: agency.phone || '',
             email: agency.email || '',
             fein: agency.fein || '',
+            licenseNumber: agency.licenseNumber || '',
           });
         }
       }
@@ -104,6 +106,7 @@ export default function ProfilePage() {
         phone: agencyData.phone,
         email: agencyData.email,
         fein: agencyData.fein,
+        licenseNumber: agencyData.licenseNumber,
       };
       saveAgency(updatedAgency);
     }
@@ -267,17 +270,32 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      FEIN <span className="text-gray-400 font-normal">(Federal Employer ID Number)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={agencyData.fein}
-                      onChange={(e) => setAgencyData({ ...agencyData, fein: e.target.value })}
-                      placeholder="XX-XXXXXXX"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Agency License Number
+                      </label>
+                      <input
+                        type="text"
+                        value={agencyData.licenseNumber}
+                        onChange={(e) => setAgencyData({ ...agencyData, licenseNumber: e.target.value })}
+                        placeholder="Enter agency license number"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        FEIN <span className="text-gray-400 font-normal">(Federal Employer ID Number)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={agencyData.fein}
+                        onChange={(e) => setAgencyData({ ...agencyData, fein: e.target.value })}
+                        placeholder="XX-XXXXXXX"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
                   </div>
 
                   <div>

@@ -91,9 +91,21 @@ export default function LicensesPage() {
     });
 
     licensesByUser.forEach((lics, userId) => {
-      const user = userMap.get(userId);
-      if (user) {
-        groups.push({ user, licenses: lics });
+      if (userId.startsWith('agency-')) {
+        const ag = getAgency();
+        const agencyAsUser: User = {
+          id: userId,
+          name: ag?.name ? `${ag.name} (Agency)` : 'Agency',
+          email: ag?.email || '',
+          role: 'admin',
+          agencyId: ag?.id || '',
+        };
+        groups.push({ user: agencyAsUser, licenses: lics });
+      } else {
+        const user = userMap.get(userId);
+        if (user) {
+          groups.push({ user, licenses: lics });
+        }
       }
     });
 
@@ -139,6 +151,10 @@ export default function LicensesPage() {
   };
 
   const getUserName = (userId: string) => {
+    if (userId.startsWith('agency-')) {
+      const ag = getAgency();
+      return ag?.name ? `${ag.name} (Agency)` : 'Agency';
+    }
     const user = allUsers.find(u => u.id === userId);
     return user?.name || 'Unknown';
   };
@@ -357,6 +373,14 @@ export default function LicensesPage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="all">All Agents</option>
+                    {(() => {
+                      const ag = getAgency();
+                      return ag ? (
+                        <option value={`agency-${ag.id}`}>
+                          {ag.name || 'Agency'} (Agency)
+                        </option>
+                      ) : null;
+                    })()}
                     {allUsers
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((user) => (
@@ -451,19 +475,20 @@ export default function LicensesPage() {
               const activeLics = agentLicenses.filter(l => l.status === 'active').length;
               const expiringLics = agentLicenses.filter(l => l.status === 'expiring-soon').length;
               const expiredLics = agentLicenses.filter(l => l.status === 'expired').length;
+              const isAgencyRow = user.id.startsWith('agency-');
               return (
                 <div key={user.id} className="bg-white rounded-lg shadow overflow-hidden">
-                  <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                  <div className={`${isAgencyRow ? 'bg-blue-50' : 'bg-gray-50'} px-6 py-4 border-b border-gray-200`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <div className={`w-10 h-10 ${isAgencyRow ? 'bg-blue-200' : 'bg-blue-100'} rounded-full flex items-center justify-center`}>
                           <span className="text-blue-700 font-semibold text-sm">
-                            {user.name.split(' ').map(n => n[0]).join('')}
+                            {isAgencyRow ? '🏢' : user.name.split(' ').map(n => n[0]).join('')}
                           </span>
                         </div>
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
-                          <p className="text-sm text-gray-500">{user.email}</p>
+                          <p className="text-sm text-gray-500">{isAgencyRow ? 'Agency Licenses' : user.email}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-sm">
@@ -640,6 +665,14 @@ function LicenseModal({
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                   required
                 >
+                  {(() => {
+                    const ag = getAgency();
+                    return ag ? (
+                      <option value={`agency-${ag.id}`}>
+                        {ag.name || 'Agency'} (Agency)
+                      </option>
+                    ) : null;
+                  })()}
                   {users.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.name} ({user.email})
