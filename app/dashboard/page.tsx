@@ -73,24 +73,28 @@ export default function DashboardPage() {
             value={stats.totalLicenses}
             icon="📋"
             color="blue"
+            href="/licenses"
           />
           <StatCard
             title="Active"
             value={stats.activeLicenses}
             icon="✓"
             color="green"
+            href="/licenses?status=active"
           />
           <StatCard
             title="Expiring Soon"
             value={stats.expiringSoon}
             icon="⚠️"
             color="yellow"
+            href="/licenses?status=expiring-soon"
           />
           <StatCard
             title="Expired"
             value={stats.expired}
             icon="✗"
             color="red"
+            href="/licenses?status=expired"
           />
         </div>
 
@@ -260,11 +264,12 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon, color }: {
+function StatCard({ title, value, icon, color, href }: {
   title: string;
   value: number;
   icon: string;
   color: 'blue' | 'green' | 'yellow' | 'red';
+  href: string;
 }) {
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-600',
@@ -274,7 +279,7 @@ function StatCard({ title, value, icon, color }: {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <Link href={href} className="bg-white rounded-lg shadow p-6 hover:shadow-md hover:ring-2 hover:ring-blue-200 transition-all cursor-pointer block">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">{title}</p>
@@ -284,7 +289,7 @@ function StatCard({ title, value, icon, color }: {
           {icon}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

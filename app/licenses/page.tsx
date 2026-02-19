@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import StatusBadge from '@/components/StatusBadge';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
@@ -9,11 +10,12 @@ import { License, User } from '@/lib/types';
 import { LICENSE_TYPES, US_STATES } from '@/lib/constants';
 
 export default function LicensesPage() {
+  const searchParams = useSearchParams();
   const [licenses, setLicenses] = useState<License[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingLicense, setEditingLicense] = useState<License | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>(searchParams.get('status') || 'all');
   const [filterAgent, setFilterAgent] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterState, setFilterState] = useState<string>('all');
