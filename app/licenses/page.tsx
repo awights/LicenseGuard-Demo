@@ -6,8 +6,8 @@ import Layout from '@/components/Layout';
 import StatusBadge from '@/components/StatusBadge';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
 import { getLicenses, saveLicense, deleteLicense, getDaysUntilExpiry, formatDate, getUsers, getAgency } from '@/lib/storage';
-import { License, User } from '@/lib/types';
-import { LICENSE_TYPES, US_STATES } from '@/lib/constants';
+import { License, User, POLICY_TYPES } from '@/lib/types';
+import { LICENSE_TYPES, POLICY_TYPES_LIST, US_STATES } from '@/lib/constants';
 
 export default function LicensesPage() {
   const searchParams = useSearchParams();
@@ -162,6 +162,7 @@ export default function LicensesPage() {
   const renderLicenseRow = (license: License) => {
     const daysUntilExpiry = getDaysUntilExpiry(license.expiryDate);
     const producer = allUsers.find(u => u.id === license.userId);
+    const isPolicy = POLICY_TYPES.includes(license.type);
     return (
       <tr key={license.id} className="hover:bg-gray-50">
         <td className="px-6 py-4 whitespace-nowrap">
@@ -169,12 +170,20 @@ export default function LicensesPage() {
             {license.type === 'Certification' && license.certificationName
               ? `Certification: ${license.certificationName}`
               : license.type}
+            {isPolicy && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                Policy
+              </span>
+            )}
             {license.isResidentState && (
               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                 Resident
               </span>
             )}
           </div>
+          {isPolicy && license.carrier && (
+            <div className="text-xs text-gray-500">Carrier: {license.carrier}</div>
+          )}
           {license.notes && (
             <div className="text-xs text-gray-500">{license.notes}</div>
           )}
@@ -240,7 +249,7 @@ export default function LicensesPage() {
             rel="noopener noreferrer"
             className="text-green-600 hover:text-green-900"
           >
-            Renew
+            {isPolicy ? 'Review' : 'Renew'}
           </a>
         </td>
       </tr>
@@ -251,10 +260,10 @@ export default function LicensesPage() {
     <thead className="bg-gray-50">
       <tr>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          License Type
+          Type
         </th>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          License Number
+          License / Policy #
         </th>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           State
@@ -570,12 +579,19 @@ function LicenseModal({
       status: 'active',
       isResidentState: false,
       certificationName: '',
+      carrier: '',
+      premiumAmount: '',
+      coverageAmount: '',
+      deductible: '',
+      namedInsured: '',
     }
   );
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [issueDateError, setIssueDateError] = useState('');
   const users = getUsers();
+  const isPolicyType = POLICY_TYPES.includes(formData.type as License['type']);
+  const isAssignedToAgency = formData.userId?.startsWith('agency-');
 
   const maxIssueDate = (() => {
     const d = new Date();
@@ -614,8 +630,13 @@ function LicenseModal({
       notes: formData.notes,
       status: 'active',
       documents: formData.documents || [],
-      isResidentState: formData.isResidentState || false,
+      isResidentState: isPolicyType ? false : (formData.isResidentState || false),
       certificationName: formData.type === 'Certification' ? formData.certificationName : undefined,
+      carrier: isPolicyType ? formData.carrier : undefined,
+      premiumAmount: isPolicyType ? formData.premiumAmount : undefined,
+      coverageAmount: isPolicyType ? formData.coverageAmount : undefined,
+      deductible: isPolicyType ? formData.deductible : undefined,
+      namedInsured: isPolicyType ? formData.namedInsured : undefined,
     };
 
     saveLicense(licenseData);
@@ -650,7 +671,7 @@ function LicenseModal({
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            {license ? 'Edit License' : 'Add New License'}
+            {license ? (isPolicyType ? 'Edit Policy' : 'Edit License') : (isPolicyType ? 'Add New Policy' : 'Add New License')}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -684,7 +705,7 @@ function LicenseModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                License Type
+                {isPolicyType ? 'Policy Type' : 'License Type'}
               </label>
               <select
                 value={formData.type}
@@ -692,11 +713,20 @@ function LicenseModal({
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 required
               >
-                {LICENSE_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
+                <optgroup label="Licenses">
+                  {LICENSE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Insurance Policies">
+                  {POLICY_TYPES_LIST.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
 
@@ -716,29 +746,31 @@ function LicenseModal({
               </div>
             )}
 
-            <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
-              <div>
-                <span className="text-sm font-medium text-gray-700">Resident State License</span>
-                <p className="text-xs text-gray-500 mt-0.5">Only one license can be marked as your resident state</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, isResidentState: !formData.isResidentState })}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  formData.isResidentState ? 'bg-blue-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    formData.isResidentState ? 'translate-x-6' : 'translate-x-1'
+            {!isPolicyType && (
+              <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Resident State License</span>
+                  <p className="text-xs text-gray-500 mt-0.5">Only one license can be marked as your resident state</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isResidentState: !formData.isResidentState })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    formData.isResidentState ? 'bg-blue-600' : 'bg-gray-300'
                   }`}
-                />
-              </button>
-            </div>
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.isResidentState ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                License Number
+                {isPolicyType ? 'Policy Number' : 'License or Policy Number'}
               </label>
               <input
                 type="text"
@@ -748,6 +780,75 @@ function LicenseModal({
                 required
               />
             </div>
+
+            {isPolicyType && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Named Insured
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.namedInsured || ''}
+                    onChange={(e) => setFormData({ ...formData, namedInsured: e.target.value })}
+                    placeholder="Name of the insured party"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Insurance Carrier
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.carrier || ''}
+                    onChange={(e) => setFormData({ ...formData, carrier: e.target.value })}
+                    placeholder="e.g., State Farm, Hartford, Travelers"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Premium Amount
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.premiumAmount || ''}
+                      onChange={(e) => setFormData({ ...formData, premiumAmount: e.target.value })}
+                      placeholder="$0.00"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Coverage Amount
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.coverageAmount || ''}
+                      onChange={(e) => setFormData({ ...formData, coverageAmount: e.target.value })}
+                      placeholder="$0.00"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Deductible
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.deductible || ''}
+                      onChange={(e) => setFormData({ ...formData, deductible: e.target.value })}
+                      placeholder="$0.00"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -770,23 +871,23 @@ function LicenseModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Issue Date
+                  {isPolicyType ? 'Effective Date' : 'Issue Date'}
                 </label>
                 <input
                   type="date"
                   value={formData.issueDate}
-                  onChange={(e) => handleIssueDateChange(e.target.value)}
-                  max={maxIssueDate}
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${issueDateError ? 'border-red-500' : 'border-gray-300'}`}
+                  onChange={(e) => isPolicyType ? setFormData({ ...formData, issueDate: e.target.value }) : handleIssueDateChange(e.target.value)}
+                  max={isPolicyType ? undefined : maxIssueDate}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${issueDateError && !isPolicyType ? 'border-red-500' : 'border-gray-300'}`}
                   required
                 />
-                {issueDateError && (
+                {issueDateError && !isPolicyType && (
                   <p className="text-xs text-red-600 mt-1">{issueDateError}</p>
                 )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Expiry Date
+                  {isPolicyType ? 'Expiration Date' : 'Expiry Date'}
                 </label>
                 <input
                   type="date"
@@ -800,7 +901,7 @@ function LicenseModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Renewal Link (Optional)
+                {isPolicyType ? 'Agent/Broker Link (Optional)' : 'Renewal Link (Optional)'}
               </label>
               <input
                 type="url"
