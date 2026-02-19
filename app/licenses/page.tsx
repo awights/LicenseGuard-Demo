@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { Suspense, useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import StatusBadge from '@/components/StatusBadge';
@@ -10,6 +10,14 @@ import { License, User, POLICY_TYPES } from '@/lib/types';
 import { LICENSE_TYPES, POLICY_TYPES_LIST, US_STATES } from '@/lib/constants';
 
 export default function LicensesPage() {
+  return (
+    <Suspense fallback={<Layout><div className="flex justify-center items-center h-64"><div className="text-gray-500">Loading...</div></div></Layout>}>
+      <LicensesContent />
+    </Suspense>
+  );
+}
+
+function LicensesContent() {
   const searchParams = useSearchParams();
   const [licenses, setLicenses] = useState<License[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
