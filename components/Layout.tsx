@@ -42,6 +42,7 @@ export default function Layout({ children }: LayoutProps) {
     { href: '/calendar', label: 'Calendar', icon: '📅' },
     { href: '/team', label: 'Team', icon: '👥', adminOnly: true },
     { href: '/profile', label: 'Profile', icon: '👤' },
+    { href: '/pricing', label: 'Pricing', icon: '💰' },
   ];
 
   return (
