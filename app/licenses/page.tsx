@@ -143,6 +143,7 @@ export default function LicensesPage() {
 
   const renderLicenseRow = (license: License) => {
     const daysUntilExpiry = getDaysUntilExpiry(license.expiryDate);
+    const producer = allUsers.find(u => u.id === license.userId);
     return (
       <tr key={license.id} className="hover:bg-gray-50">
         <td className="px-6 py-4 whitespace-nowrap">
@@ -165,6 +166,12 @@ export default function LicensesPage() {
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
           {license.state}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          {producer?.ssnLast4 ? `***-**-${producer.ssnLast4}` : <span className="text-gray-400">--</span>}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          {producer?.dateOfBirth ? formatDate(producer.dateOfBirth) : <span className="text-gray-400">--</span>}
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
           {formatDate(license.expiryDate)}
@@ -233,6 +240,12 @@ export default function LicensesPage() {
         </th>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           State
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          SSN Last 4
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Date of Birth
         </th>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Expiry Date
