@@ -147,7 +147,9 @@ export default function LicensesPage() {
       <tr key={license.id} className="hover:bg-gray-50">
         <td className="px-6 py-4 whitespace-nowrap">
           <div className="text-sm font-medium text-gray-900">
-            {license.type}
+            {license.type === 'Certification' && license.certificationName
+              ? `Certification: ${license.certificationName}`
+              : license.type}
             {license.isResidentState && (
               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                 Resident
@@ -517,7 +519,7 @@ function LicenseModal({
   const [formData, setFormData] = useState<Partial<License>>(
     license || {
       userId: currentUser?.id || '',
-      type: 'State Producer',
+      type: 'Life & Health',
       licenseNumber: '',
       state: 'CA',
       issueDate: '',
@@ -527,14 +529,38 @@ function LicenseModal({
       documents: [],
       status: 'active',
       isResidentState: false,
+      certificationName: '',
     }
   );
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [issueDateError, setIssueDateError] = useState('');
   const users = getUsers();
+
+  const maxIssueDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  })();
+
+  const handleIssueDateChange = (value: string) => {
+    const selected = new Date(value);
+    const limit = new Date();
+    limit.setDate(limit.getDate() + 7);
+    limit.setHours(23, 59, 59, 999);
+
+    if (selected > limit) {
+      setIssueDateError('Issue date cannot be more than 7 days in the future');
+    } else {
+      setIssueDateError('');
+    }
+    setFormData({ ...formData, issueDate: value });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (issueDateError) return;
 
     const licenseData: License = {
       id: license?.id || `lic-${Date.now()}`,
@@ -549,6 +575,7 @@ function LicenseModal({
       status: 'active',
       documents: formData.documents || [],
       isResidentState: formData.isResidentState || false,
+      certificationName: formData.type === 'Certification' ? formData.certificationName : undefined,
     };
 
     saveLicense(licenseData);
@@ -625,6 +652,22 @@ function LicenseModal({
               </select>
             </div>
 
+            {formData.type === 'Certification' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Certification Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.certificationName || ''}
+                  onChange={(e) => setFormData({ ...formData, certificationName: e.target.value })}
+                  placeholder="e.g., Certified Insurance Counselor (CIC)"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            )}
+
             <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
               <div>
                 <span className="text-sm font-medium text-gray-700">Resident State License</span>
@@ -684,10 +727,14 @@ function LicenseModal({
                 <input
                   type="date"
                   value={formData.issueDate}
-                  onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => handleIssueDateChange(e.target.value)}
+                  max={maxIssueDate}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${issueDateError ? 'border-red-500' : 'border-gray-300'}`}
                   required
                 />
+                {issueDateError && (
+                  <p className="text-xs text-red-600 mt-1">{issueDateError}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

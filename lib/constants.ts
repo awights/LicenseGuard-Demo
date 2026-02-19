@@ -2,15 +2,15 @@
 import { LicenseType } from './types';
 
 export const LICENSE_TYPES: LicenseType[] = [
-  'State Producer',
   'Life & Health',
   'Property & Casualty',
   'E&O Insurance',
-  'CE Credits',
+  'Fixed & Variable Annuities',
   'FINRA Series 6',
   'FINRA Series 7',
   'FINRA Series 63',
   'FINRA Series 65',
+  'Certification',
 ];
 
 export const US_STATES = [

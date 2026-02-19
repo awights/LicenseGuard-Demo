@@ -16,7 +16,7 @@ export function initializeDemoData() {
     {
       id: 'lic-1',
       userId: 'user-1',
-      type: 'State Producer',
+      type: 'Life & Health',
       licenseNumber: 'CA-12345678',
       state: 'CA',
       issueDate: '2023-01-15',
@@ -52,8 +52,8 @@ export function initializeDemoData() {
     {
       id: 'lic-4',
       userId: 'user-2',
-      type: 'CE Credits',
-      licenseNumber: 'CE-2024-001',
+      type: 'Fixed & Variable Annuities',
+      licenseNumber: 'FVA-2024-001',
       state: 'FL',
       issueDate: '2024-01-01',
       expiryDate: '2024-12-31',

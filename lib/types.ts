@@ -23,15 +23,15 @@ export interface Agency {
 }
 
 export type LicenseType = 
-  | 'State Producer'
   | 'Life & Health'
   | 'Property & Casualty'
   | 'E&O Insurance'
-  | 'CE Credits'
+  | 'Fixed & Variable Annuities'
   | 'FINRA Series 6'
   | 'FINRA Series 7'
   | 'FINRA Series 63'
-  | 'FINRA Series 65';
+  | 'FINRA Series 65'
+  | 'Certification';
 
 export type LicenseStatus = 'active' | 'expiring-soon' | 'expired';
 
@@ -48,6 +48,7 @@ export interface License {
   documents: Document[];
   notes?: string;
   isResidentState?: boolean;
+  certificationName?: string;
 }
 
 export interface Document {
