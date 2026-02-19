@@ -20,5 +20,15 @@ LicenseGuard is an Insurance License & Permit Lifecycle Manager built with Next.
 - Build: `npm run build`
 - Start: `npm run start`
 
+## Key Design Decisions
+- **License vs Policy types**: LICENSE_TYPES are traditional insurance licenses; POLICY_TYPES_LIST are insurance policies (Workers Comp, Property, Liability, Business Owners, E&O Insurance). E&O Insurance appears in both categories.
+- **Policy-specific fields**: carrier, premiumAmount, coverageAmount, deductible, namedInsured — only shown/saved for policy types
+- **POLICY_TYPES array** in types.ts determines which types are treated as policies (different form fields, no resident state toggle, different date labels)
+- **Agency licenses**: userId pattern "agency-{agencyId}", displayed with building icon
+- **Resident state**: Boolean flag on license, only one per user, hidden for policy types
+- **Default renewal link**: https://hub.app.nipr.com/my-nipr/frontend/identify-licensee
+- **Issue date validation**: Cannot be more than 7 days in future (licenses only, not policies)
+
 ## Recent Changes
+- 2026-02-19: Added policy types with distinct form fields (carrier, premium, coverage, deductible, named insured); table shows Policy badge and carrier; renamed License Number to License / Policy #
 - 2026-02-18: Initial Replit setup, configured port 5000, allowed dev origins for Replit proxy
