@@ -107,7 +107,7 @@ export default function TeamPage() {
             <button
               onClick={handleAddNew}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center"
-              disabled={agency && agency.currentSeats >= agency.maxSeats}
+              disabled={!!(agency && agency.currentSeats >= agency.maxSeats)}
             >
               <span className="mr-2">➕</span>
               Add Team Member
