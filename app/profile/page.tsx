@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
-import { getCurrentUser } from '@/lib/auth';
-import { getUsers, saveUser } from '@/lib/storage';
-import { User } from '@/lib/types';
+import { getCurrentUser, isAdmin } from '@/lib/auth';
+import { getUsers, saveUser, getAgency, saveAgency } from '@/lib/storage';
+import { User, Agency } from '@/lib/types';
+import { US_STATES } from '@/lib/constants';
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -17,6 +18,17 @@ export default function ProfilePage() {
     dateOfBirth: '',
   });
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [agencyData, setAgencyData] = useState({
+    name: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    phone: '',
+    email: '',
+    fein: '',
+  });
+  const [agencySaveStatus, setAgencySaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   useEffect(() => {
     const currentUser = getCurrentUser();
@@ -30,6 +42,22 @@ export default function ProfilePage() {
         crdNumber: currentUser.crdNumber || '',
         dateOfBirth: currentUser.dateOfBirth || '',
       });
+
+      if (isAdmin(currentUser)) {
+        const agency = getAgency();
+        if (agency) {
+          setAgencyData({
+            name: agency.name || '',
+            address: agency.address || '',
+            city: agency.city || '',
+            state: agency.state || '',
+            zipCode: agency.zipCode || '',
+            phone: agency.phone || '',
+            email: agency.email || '',
+            fein: agency.fein || '',
+          });
+        }
+      }
     }
   }, []);
 
@@ -56,6 +84,32 @@ export default function ProfilePage() {
     
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2000);
+  };
+
+  const handleAgencySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    setAgencySaveStatus('saving');
+
+    const agency = getAgency();
+    if (agency) {
+      const updatedAgency: Agency = {
+        ...agency,
+        name: agencyData.name,
+        address: agencyData.address,
+        city: agencyData.city,
+        state: agencyData.state,
+        zipCode: agencyData.zipCode,
+        phone: agencyData.phone,
+        email: agencyData.email,
+        fein: agencyData.fein,
+      };
+      saveAgency(updatedAgency);
+    }
+
+    setAgencySaveStatus('saved');
+    setTimeout(() => setAgencySaveStatus('idle'), 2000);
   };
 
   const niprUrl = `https://hub.app.nipr.com/my-nipr/frontend/identify-licensee`;
@@ -194,6 +248,145 @@ export default function ProfilePage() {
                 </div>
               </form>
             </div>
+
+            {user && isAdmin(user) && (
+              <div className="bg-white rounded-lg shadow p-6 mt-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Agency Information</h2>
+
+                <form onSubmit={handleAgencySubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Agency Name
+                    </label>
+                    <input
+                      type="text"
+                      value={agencyData.name}
+                      onChange={(e) => setAgencyData({ ...agencyData, name: e.target.value })}
+                      placeholder="Enter agency name"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      FEIN <span className="text-gray-400 font-normal">(Federal Employer ID Number)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={agencyData.fein}
+                      onChange={(e) => setAgencyData({ ...agencyData, fein: e.target.value })}
+                      placeholder="XX-XXXXXXX"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Street Address
+                    </label>
+                    <input
+                      type="text"
+                      value={agencyData.address}
+                      onChange={(e) => setAgencyData({ ...agencyData, address: e.target.value })}
+                      placeholder="123 Main Street, Suite 100"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        value={agencyData.city}
+                        onChange={(e) => setAgencyData({ ...agencyData, city: e.target.value })}
+                        placeholder="City"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        State
+                      </label>
+                      <select
+                        value={agencyData.state}
+                        onChange={(e) => setAgencyData({ ...agencyData, state: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Select State</option>
+                        {US_STATES.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        ZIP Code
+                      </label>
+                      <input
+                        type="text"
+                        value={agencyData.zipCode}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^\d-]/g, '');
+                          setAgencyData({ ...agencyData, zipCode: value.slice(0, 10) });
+                        }}
+                        placeholder="12345"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        maxLength={10}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={agencyData.phone}
+                        onChange={(e) => setAgencyData({ ...agencyData, phone: e.target.value })}
+                        placeholder="(555) 123-4567"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Agency Email
+                      </label>
+                      <input
+                        type="email"
+                        value={agencyData.email}
+                        onChange={(e) => setAgencyData({ ...agencyData, email: e.target.value })}
+                        placeholder="info@agency.com"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t">
+                    <button
+                      type="submit"
+                      disabled={agencySaveStatus === 'saving'}
+                      className={`w-full px-6 py-3 rounded-lg font-medium text-white transition-colors ${
+                        agencySaveStatus === 'saved'
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'bg-blue-600 hover:bg-blue-700'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {agencySaveStatus === 'saving' && 'Saving...'}
+                      {agencySaveStatus === 'saved' && 'Agency Info Saved!'}
+                      {agencySaveStatus === 'idle' && 'Save Agency Information'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
 
           {/* Quick Links Sidebar */}

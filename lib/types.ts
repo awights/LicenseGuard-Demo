@@ -20,6 +20,13 @@ export interface Agency {
   planType: 'individual' | 'team' | 'enterprise';
   maxSeats: number;
   currentSeats: number;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  phone?: string;
+  email?: string;
+  fein?: string;
 }
 
 export type LicenseType = 
