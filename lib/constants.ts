@@ -41,48 +41,85 @@ export const US_STATES = [
 export const PRICING_PLANS = {
   individual: {
     name: 'Individual',
-    price: 19,
+    price: 29,
+    annualPrice: 24, // $288/year (save $60)
     seats: 1,
+    savingsText: 'Save $60/year',
     features: [
       'Unlimited license tracking',
-      'Renewal email alerts (90/60/30 days)',
-      'Document storage (up to 100MB)',
-      'Calendar view',
-      'Mobile app access',
-      'Email support'
-    ]
+      '90/60/30-day renewal alerts',
+      '500 MB secure document storage',
+      'Calendar & dashboard view',
+      'Mobile app (iOS & Android)',
+      'Email support (24hr response)',
+      'State-specific compliance tracking',
+      'CE credit hour tracking'
+    ],
+    limits: {
+      storage: '500 MB',
+      users: 1,
+      support: 'Email (24hr)'
+    }
   },
-  team: {
-    name: 'Team',
-    price: 99,
-    seats: 5,
-    additionalSeatPrice: 15,
+  agency: {
+    name: 'Agency',
+    price: 199,
+    annualPrice: 166, // $1,992/year (save $396)
+    seats: 10,
+    additionalSeatPrice: 19,
+    savingsText: 'Save $396/year',
     features: [
-      'Everything in Individual',
-      'Up to 5 team members',
-      '$15/month per additional seat',
-      'Team license management',
-      'Admin dashboard',
-      'Document storage (up to 1GB)',
-      'Priority email support',
-      'Bulk license upload'
-    ]
+      'Everything in Individual, plus:',
+      'Up to 10 agents included',
+      'Only $19/month per additional agent',
+      'Team-wide compliance dashboard',
+      'Centralized license management',
+      'Bulk upload & import tools',
+      '10 GB secure document storage',
+      'Custom alert schedules',
+      'Manager approval workflows',
+      'Audit-ready reports & exports',
+      'Priority support (4hr response)',
+      'Onboarding & training session'
+    ],
+    limits: {
+      storage: '10 GB',
+      users: '10 included',
+      support: 'Priority (4hr)',
+      additionalSeat: '$19/month'
+    },
+    badge: 'Most Popular',
+    recommended: true
   },
   enterprise: {
     name: 'Enterprise',
     price: 'Custom',
-    seats: '10+',
+    annualPrice: 'Contact Sales',
+    seats: '50+',
+    savingsText: 'Volume discounts available',
     features: [
-      'Everything in Team',
-      '10+ team members',
+      'Everything in Agency, plus:',
+      'Unlimited agents & seats',
       'Unlimited document storage',
-      'Custom integrations',
-      'SSO authentication',
       'Dedicated account manager',
-      'Phone & priority support',
-      'Custom reporting',
-      'API access'
-    ]
+      'White-glove onboarding (30-60 days)',
+      'Custom integrations (AMS, CRM)',
+      'SSO & SAML authentication',
+      'Advanced security & compliance',
+      'Custom reporting & analytics',
+      'API access & webhooks',
+      'Multi-location management',
+      'Priority phone support (1hr SLA)',
+      'Quarterly business reviews',
+      'Custom contract terms'
+    ],
+    limits: {
+      storage: 'Unlimited',
+      users: '50+ agents',
+      support: 'Dedicated + Phone (1hr SLA)',
+      additionalSeat: 'Volume pricing'
+    },
+    isEnterprise: true
   }
 };
 
